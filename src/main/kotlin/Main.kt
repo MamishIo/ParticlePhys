@@ -11,6 +11,10 @@ import kotlin.random.Random.Default as random
 data class Vector2(var x: Double, var y: Double)
 data class Particle(val radius: Double, val color: Color, var ttl: Double, val position: Vector2, val velocity: Vector2)
 
+val particles: MutableList<Particle> = mutableListOf()
+var particlesToSpawnAccumulator = 0.0
+var lastTickNano = System.nanoTime()
+
 val canvasImage = BufferedImage(HORIZONTAL_BOUND, VERTICAL_BOUND, BufferedImage.TYPE_INT_ARGB)
 var canvasComponent = object : JPanel() {
     override fun paintComponent(g: Graphics?) {
@@ -19,16 +23,12 @@ var canvasComponent = object : JPanel() {
     }
 }
 
-val particles: MutableList<Particle> = mutableListOf()
-var particlesToSpawnAccumulator = 0.0
-var lastTickNano = System.nanoTime()
-
 fun main() {
-    Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(::onTick, 0, TICK_INTERVAL_US, MICROSECONDS)
+    Executors.newSingleThreadScheduledExecutor().scheduleAtFixedRate(::tick, 0, TICK_INTERVAL_US, MICROSECONDS)
     createWindow()
 }
 
-fun onTick() {
+fun tick() {
     val timeDelta = 1.0 / TICK_RATE // Uses a fixed time delta for now
     simulateAllParticles(timeDelta)
     spawnNewParticles(timeDelta)
@@ -51,9 +51,24 @@ fun simulateAllParticles(timeDelta: Double) {
 }
 
 fun simulateParticle(particle: Particle, timeDelta: Double) {
-    particle.velocity.y += GLOBAL_GRAVITY * timeDelta
-    particle.position.x += particle.velocity.x * timeDelta
-    particle.position.y += particle.velocity.y * timeDelta
+    with(particle) {
+        velocity.y += GLOBAL_GRAVITY * timeDelta
+        position.x += velocity.x * timeDelta
+        position.y += velocity.y * timeDelta
+        // This repetition sucks, figure out how to make it better
+        if (position.x < radius) {
+            velocity.x = abs(velocity.x)
+        }
+        if (position.x > HORIZONTAL_BOUND - radius) {
+            velocity.x = -abs(velocity.x)
+        }
+        if (position.y < radius) {
+            velocity.y = abs(velocity.y)
+        }
+        if (position.y > VERTICAL_BOUND - radius) {
+            velocity.y = -abs(velocity.y)
+        }
+    }
 }
 
 fun spawnNewParticles(timeDelta: Double) {
