@@ -1,0 +1,16 @@
+Terminology:
+* Enclosing node: smallest node in tree whose space completes encloses a particle; particles maintains a ref to this node as its 'world'
+
+Tick actions:
+* for each particle in linear list
+  * remove if expired
+    * also remove from tree using enclosing node ref
+  * move particle
+  * if particle has moved outside enclosing node's bounds, re-locate (expand out then shrink) to get new enclosing node
+  * refresh position in enclosing node: remove from all subtrees of enclosing node and re-add
+    * might be smart to hold refs to all containing nodes instead of just enclosing node to make this linear rather than exponential
+* create new 'collision map' and then for each tree leaf
+  * for each pair of objects in leaf
+    * if pair doesn't have a result yet in collision map, check if colliding and add result
+* for each positive collision, resolve collision and update position and velocity
+  * position change invalidates tree, which is only okay because the start of the next tick is going to do that anyway
