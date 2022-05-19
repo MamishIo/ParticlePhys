@@ -90,9 +90,11 @@ sealed class ParticleQuadtree(val parent: ParticleQuadtree?, val position: Vecto
         }
     }
 
+    // TODO: Investigate slow performance on tree relocate due to unnecessary HashSet remove calls
+    // TODO: Should change particle to track all leaf nodes it is part of, in addition to exiting enclosing node ref
     fun removeParticle(particle: Particle) {
         when (this) {
-            is Leaf -> particles.remove(particle)
+            is Leaf -> particles.remove(particle) // This particular call is a big contributor on profiler
             is Branch -> quadrants.forEach { it.removeParticle(particle) }
         }
     }
