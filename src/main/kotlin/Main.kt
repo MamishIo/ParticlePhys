@@ -68,7 +68,7 @@ fun drawParticles(timeDelta: Double) {
         color = Color(0f, 0f, 0f, alphaForClear.toFloat())
         fillRect(0, 0, mainImage.width, mainImage.height)
 
-        particleTree.getParticleIterator().forEach { p ->
+        particleList.forEach { p ->
             color = p.color
             val drawX = (p.position.x - p.radius).roundToInt()
             val drawY = (p.position.y - p.radius).roundToInt()

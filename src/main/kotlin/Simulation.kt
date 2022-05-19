@@ -5,7 +5,7 @@ import kotlin.random.Random.Default as random
 
 // Different data structures for different traversals: list for fast exactly-once iteration, and tree for at-least-once spatial traversal
 val particleList = ArrayList<Particle>()
-val particleTree = ParticleQuadtree.Branch(Vector2D(0.0, 0.0), Vector2D(HORIZONTAL_BOUND.toDouble(), VERTICAL_BOUND.toDouble()), 0)
+val particleTree = ParticleQuadtree.Branch(null, Vector2D(0.0, 0.0), Vector2D(HORIZONTAL_BOUND.toDouble(), VERTICAL_BOUND.toDouble()), 0)
 var particlesToSpawnAccumulator = 0.0
 
 // TODO Just clean up Performance.kt and this timing code all over
@@ -16,12 +16,13 @@ fun simulationTick(timeDelta: Double) {
 }
 
 fun simulateAllParticles(timeDelta: Double) {
-    val iterator = particleTree.getParticleIterator()
+    val iterator = particleList.iterator()
     while (iterator.hasNext()) {
         val p = iterator.next()
         p.ttl -= timeDelta
         if (p.ttl <= 0.0) {
             iterator.remove()
+            p.enclosingTreeNode.removeParticle(p)
         } else {
             simulateParticle(p, timeDelta)
         }
@@ -29,7 +30,12 @@ fun simulateAllParticles(timeDelta: Double) {
 }
 
 fun simulateParticle(particle: Particle, timeDelta: Double) {
-    with(particle) {
+    simulateParticleMotion(particle, timeDelta)
+    relocateParticleInTree(particle)
+}
+
+fun simulateParticleMotion(particle: Particle, timeDelta: Double) {
+    particle.run {
         velocity.addMult(GLOBAL_GRAVITY, timeDelta)
         position.addMult(velocity, timeDelta)
         // This repetition sucks, figure out how to make it better
@@ -48,10 +54,23 @@ fun simulateParticle(particle: Particle, timeDelta: Double) {
     }
 }
 
+fun relocateParticleInTree(p: Particle) {
+        // If enclosing node is no longer completely enclosing, move up the tree to find a bigger node that does enclose this
+        while (!p.enclosingTreeNode.enclosesParticle(p) && p.enclosingTreeNode.parent != null) {
+            p.enclosingTreeNode = p.enclosingTreeNode.parent!!
+        }
+        // Recursively remove the particle from the enclosing node and all sub-trees and re-add it to refresh its position
+        // Because this is scoped to the enclosing node, it usually will only need to traverse a fraction of the tree
+        p.enclosingTreeNode.removeParticle(p)
+        p.enclosingTreeNode.addParticleIfTouching(p)
+}
+
 fun spawnNewParticles(timeDelta: Double) {
     particlesToSpawnAccumulator += PARTICLE_SPAWN_RATE.next() * timeDelta
     while (particlesToSpawnAccumulator >= 1.0) {
-        particleTree.addParticleIfTouching(randomParticle())
+        val p = randomParticle()
+        particleList.add(p)
+        particleTree.addParticleIfTouching(p)
         particlesToSpawnAccumulator--
     }
 }
@@ -68,7 +87,7 @@ fun randomParticle(): Particle {
     val velocityDirection = random.nextDouble(PI * 2.0)
     val velocity = Vector2D(velocityMagnitude * cos(velocityDirection), velocityMagnitude * sin(velocityDirection))
 
-    return Particle(id, radius, color, ttl, position, velocity)
+    return Particle(id, radius, color, ttl, position, velocity, particleTree)
 }
 
 fun randomColor(): Color {
