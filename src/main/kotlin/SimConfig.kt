@@ -10,7 +10,7 @@ val PARTICLE_RADIUS_RANGE = DoubleRange(9.0, 16.0)
 val PARTICLE_START_VELOCITY_RANGE = DoubleRange(120.0, 160.0)
 val PARTICLE_LIFETIME_RANGE = DoubleRange(3.5, 4.5)
 
-val PARTICLE_SPAWN_RATE = DoubleRange(160.0, 180.0) //DoubleRange(25.0, 40.0)
+val PARTICLE_SPAWN_RATE = DoubleRange(320.0, 330.0) //DoubleRange(25.0, 40.0)
 
 val GLOBAL_GRAVITY = Vector2D(0.0, 20.0)
 
@@ -23,4 +23,4 @@ const val TRAIL_TARGET_ALPHA_1_SECOND = 0.03
 const val PARTICLE_ALPHA = 0.3
 
 const val QUADTREE_MAX_HEIGHT = 5
-const val QUADTREE_MAX_PARTICLES_PER_LEAF = 8
+const val QUADTREE_MAX_PARTICLES_PER_LEAF = 20

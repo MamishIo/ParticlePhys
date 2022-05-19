@@ -28,7 +28,7 @@ sealed class ParticleQuadtree(val parent: ParticleQuadtree?, val position: Vecto
     }
 
     class Leaf(parent: ParticleQuadtree?, position: Vector2D, size: Vector2D, depth: Int): ParticleQuadtree(parent, position, size, depth) {
-        val particles = mutableSetOf<Particle>()
+        val particles = HashSet<Particle>(64)
     }
 
     fun getLeafIterator(): Iterator<Leaf> {
@@ -77,8 +77,6 @@ sealed class ParticleQuadtree(val parent: ParticleQuadtree?, val position: Vecto
             }
         }
     }
-
-    // TODO next step: add logic to track enclosing node in particles
 
     fun addParticleIfTouching(particle: Particle) {
         if (touchesParticle(particle)) {

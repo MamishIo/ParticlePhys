@@ -23,6 +23,13 @@ fun simulationTick(timeDelta: Double) {
 }
 
 fun simulateAllParticles(timeDelta: Double) {
+    removeExpiredParticles(timeDelta)
+    SIMULATE_PARTICLES_MOVE_COUNTER.time { particleList.forEach { simulateParticleMotion(it, timeDelta) } }
+    SIMULATE_PARTICLES_RELOCATE_COUNTER.time { particleList.forEach { relocateParticleInTree(it) } }
+    SIMULATE_PARTICLES_RESIZE_COUNTER.time { particleTree = particleTree.resizeTree() }
+}
+
+fun removeExpiredParticles(timeDelta: Double) {
     val iterator = particleList.iterator()
     while (iterator.hasNext()) {
         val p = iterator.next()
@@ -30,11 +37,41 @@ fun simulateAllParticles(timeDelta: Double) {
         if (p.ttl <= 0.0) {
             iterator.remove()
             p.enclosingTreeNode.removeParticle(p)
-        } else {
-            simulateParticle(p, timeDelta)
         }
     }
-    particleTree = particleTree.resizeTree()
+}
+
+fun simulateParticleMotion(particle: Particle, timeDelta: Double) {
+    particle.run {
+        velocity.addMult(GLOBAL_GRAVITY, timeDelta)
+        position.addMult(velocity, timeDelta)
+        // This repetition sucks, figure out how to make it better
+        if (position.x < radius) {
+            velocity.x = abs(velocity.x)
+        }
+        if (position.x > HORIZONTAL_BOUND - radius) {
+            velocity.x = -abs(velocity.x)
+        }
+        if (position.y < radius) {
+            velocity.y = abs(velocity.y)
+        }
+        if (position.y > VERTICAL_BOUND - radius) {
+            velocity.y = -abs(velocity.y)
+        }
+    }
+}
+
+fun relocateParticleInTree(p: Particle) {
+        // If enclosing node is no longer completely enclosing, move up the tree to find a bigger node that does enclose this
+        while (!p.enclosingTreeNode.enclosesParticle(p) && p.enclosingTreeNode.parent != null) {
+            p.enclosingTreeNode = p.enclosingTreeNode.parent!!
+        }
+        // Recursively remove the particle from the enclosing node and all sub-trees and re-add it to refresh its position
+        // Because this is scoped to the enclosing node, it usually will only need to traverse a fraction of the tree
+        p.enclosingTreeNode.removeParticle(p)
+        p.enclosingTreeNode.addParticleIfTouching(p)
+        //particleTree.removeParticle(p)
+        //particleTree.addParticleIfTouching(p)
 }
 
 fun findAllCollisions() {
@@ -83,42 +120,6 @@ fun drawCollisionLines(graphics: Graphics2D) {
             return
         }
     }
-}
-
-fun simulateParticle(particle: Particle, timeDelta: Double) {
-    simulateParticleMotion(particle, timeDelta)
-    relocateParticleInTree(particle)
-}
-
-fun simulateParticleMotion(particle: Particle, timeDelta: Double) {
-    particle.run {
-        velocity.addMult(GLOBAL_GRAVITY, timeDelta)
-        position.addMult(velocity, timeDelta)
-        // This repetition sucks, figure out how to make it better
-        if (position.x < radius) {
-            velocity.x = abs(velocity.x)
-        }
-        if (position.x > HORIZONTAL_BOUND - radius) {
-            velocity.x = -abs(velocity.x)
-        }
-        if (position.y < radius) {
-            velocity.y = abs(velocity.y)
-        }
-        if (position.y > VERTICAL_BOUND - radius) {
-            velocity.y = -abs(velocity.y)
-        }
-    }
-}
-
-fun relocateParticleInTree(p: Particle) {
-        // If enclosing node is no longer completely enclosing, move up the tree to find a bigger node that does enclose this
-        while (!p.enclosingTreeNode.enclosesParticle(p) && p.enclosingTreeNode.parent != null) {
-            p.enclosingTreeNode = p.enclosingTreeNode.parent!!
-        }
-        // Recursively remove the particle from the enclosing node and all sub-trees and re-add it to refresh its position
-        // Because this is scoped to the enclosing node, it usually will only need to traverse a fraction of the tree
-        p.enclosingTreeNode.removeParticle(p)
-        p.enclosingTreeNode.addParticleIfTouching(p)
 }
 
 fun spawnNewParticles(timeDelta: Double) {

@@ -9,6 +9,9 @@ enum class MetricType {
 
 val UPDATE_CYCLE_COUNTER = PerformanceCounter("UpdateCycle", MetricType.RATE)
 val SIMULATE_PARTICLES_COUNTER = PerformanceCounter("SimulateParticles", MetricType.TIME)
+val SIMULATE_PARTICLES_MOVE_COUNTER = PerformanceCounter("SimulateParticles.Move", MetricType.TIME)
+val SIMULATE_PARTICLES_RELOCATE_COUNTER = PerformanceCounter("SimulateParticles.Relocate", MetricType.TIME)
+val SIMULATE_PARTICLES_RESIZE_COUNTER = PerformanceCounter("SimulateParticles.Resize", MetricType.TIME)
 val SPAWN_PARTICLES_COUNTER = PerformanceCounter("SpawnParticles", MetricType.TIME)
 val FIND_COLLISIONS_COUNTER = PerformanceCounter("FindCollisions", MetricType.TIME)
 val DRAW_PARTICLES_COUNTER = PerformanceCounter("DrawParticles", MetricType.TIME)
