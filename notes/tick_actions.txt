@@ -9,6 +9,10 @@ Tick actions:
   * if particle has moved outside enclosing node's bounds, re-locate (expand out then shrink) to get new enclosing node
   * refresh position in enclosing node: remove from all subtrees of enclosing node and re-add
     * might be smart to hold refs to all containing nodes instead of just enclosing node to make this linear rather than exponential
+* recurse from tree root
+  * if node is leaf and has too many particles, subdivide it and recursively resize quadrants of new branch
+  * if node is branch, recursively resize quadrants
+    * if all quadrants are empty leaves, merge into a new empty leaf
 * create new 'collision map' and then for each tree leaf
   * for each pair of objects in leaf
     * if pair doesn't have a result yet in collision map, check if colliding and add result

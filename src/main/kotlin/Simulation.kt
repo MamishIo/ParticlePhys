@@ -5,7 +5,7 @@ import kotlin.random.Random.Default as random
 
 // Different data structures for different traversals: list for fast exactly-once iteration, and tree for at-least-once spatial traversal
 val particleList = ArrayList<Particle>()
-val particleTree = ParticleQuadtree.Branch(null, Vector2D(0.0, 0.0), Vector2D(HORIZONTAL_BOUND.toDouble(), VERTICAL_BOUND.toDouble()), 0)
+var particleTree: ParticleQuadtree = ParticleQuadtree.Leaf(null, Vector2D(0.0, 0.0), Vector2D(HORIZONTAL_BOUND.toDouble(), VERTICAL_BOUND.toDouble()), 0)
 var particlesToSpawnAccumulator = 0.0
 
 // TODO Just clean up Performance.kt and this timing code all over
@@ -32,6 +32,7 @@ fun simulateAllParticles(timeDelta: Double) {
 fun simulateParticle(particle: Particle, timeDelta: Double) {
     simulateParticleMotion(particle, timeDelta)
     relocateParticleInTree(particle)
+    particleTree = particleTree.resizeTree()
 }
 
 fun simulateParticleMotion(particle: Particle, timeDelta: Double) {
@@ -81,7 +82,7 @@ fun randomParticle(): Particle {
     val color = randomColor()
     val ttl = PARTICLE_LIFETIME_RANGE.next()
     //val position = listOf(Vector2D(960.0, 540.0), Vector2D(480.0, 270.0), Vector2D(480.0, 540.0)).random()
-    val position = Vector2D(random.nextDouble(HORIZONTAL_BOUND.toDouble()), random.nextDouble(VERTICAL_BOUND.toDouble()))
+    val position = Vector2D(squareWeightedRandom(HORIZONTAL_BOUND), squareWeightedRandom(VERTICAL_BOUND))
     val velocityMagnitude = PARTICLE_START_VELOCITY_RANGE.next()
     //val velocityMagnitude = 300.0
     val velocityDirection = random.nextDouble(PI * 2.0)
@@ -89,6 +90,8 @@ fun randomParticle(): Particle {
 
     return Particle(id, radius, color, ttl, position, velocity, particleTree)
 }
+
+fun squareWeightedRandom(max: Int) = random.nextDouble().pow(2) * max
 
 fun randomColor(): Color {
     val rgb = Color.HSBtoRGB(PARTICLE_HUE_RANGE.next(), 1f, 1f)
