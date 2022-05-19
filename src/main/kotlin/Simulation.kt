@@ -5,6 +5,9 @@ import java.awt.image.ColorModel
 import kotlin.math.*
 import kotlin.random.Random.Default as random
 
+// Protects against HUD draw blowing out the render time if there are a LOT of collision pairs to check
+const val MAX_DEBUG_COLLISION_LINES = 20000
+
 // Different data structures for different traversals: list for fast exactly-once iteration, and tree for at-least-once spatial traversal
 val particleList = ArrayList<Particle>()
 var particleTree: ParticleQuadtree = ParticleQuadtree.Leaf(null, Vector2D(0.0, 0.0), Vector2D(HORIZONTAL_BOUND.toDouble(), VERTICAL_BOUND.toDouble()), 0)
@@ -13,12 +16,10 @@ var particlesToSpawnAccumulator = 0.0
 data class ParticlePair(val p0: Particle, val p1: Particle)
 val collisionsMap = mutableMapOf<ParticlePair,Boolean>()
 
-// TODO Just clean up Performance.kt and this timing code all over
-
 fun simulationTick(timeDelta: Double) {
-    debugReportTimeTaken("simulate") { simulateAllParticles(timeDelta) }
-    debugReportTimeTaken("spawn") { spawnNewParticles(timeDelta) }
-    debugReportTimeTaken("findAllCollisions") { findAllCollisions() }
+    SIMULATE_PARTICLES_COUNTER.time { simulateAllParticles(timeDelta) }
+    SPAWN_PARTICLES_COUNTER.time { spawnNewParticles(timeDelta) }
+    FIND_COLLISIONS_COUNTER.time { findAllCollisions() }
 }
 
 fun simulateAllParticles(timeDelta: Double) {
@@ -33,6 +34,7 @@ fun simulateAllParticles(timeDelta: Double) {
             simulateParticle(p, timeDelta)
         }
     }
+    particleTree = particleTree.resizeTree()
 }
 
 fun findAllCollisions() {
@@ -69,6 +71,7 @@ fun particlesAreColliding(p0: Particle, p1: Particle): Boolean {
 fun drawCollisionLines(graphics: Graphics2D) {
     val defaultStroke = BasicStroke(1.0f)
     val bigStroke = BasicStroke(2.5f)
+    var numberDrawn = 0
     collisionsMap.forEach { (pair, colliding) ->
         graphics.color = if (colliding) Color.RED else Color.BLUE
         graphics.stroke = if (colliding) bigStroke else defaultStroke
@@ -76,13 +79,15 @@ fun drawCollisionLines(graphics: Graphics2D) {
             pair.p0.position.x.roundToInt(), pair.p0.position.y.roundToInt(),
             pair.p1.position.x.roundToInt(), pair.p1.position.y.roundToInt()
         )
+        if (++numberDrawn > MAX_DEBUG_COLLISION_LINES) {
+            return
+        }
     }
 }
 
 fun simulateParticle(particle: Particle, timeDelta: Double) {
     simulateParticleMotion(particle, timeDelta)
     relocateParticleInTree(particle)
-    particleTree = particleTree.resizeTree()
 }
 
 fun simulateParticleMotion(particle: Particle, timeDelta: Double) {
@@ -132,7 +137,7 @@ fun randomParticle(): Particle {
     val color = randomColor()
     val ttl = PARTICLE_LIFETIME_RANGE.next()
     //val position = listOf(Vector2D(960.0, 540.0), Vector2D(480.0, 270.0), Vector2D(480.0, 540.0)).random()
-    val position = Vector2D(squareWeightedRandom(HORIZONTAL_BOUND), squareWeightedRandom(VERTICAL_BOUND))
+    val position = Vector2D(squareWeightedRandomReverse(HORIZONTAL_BOUND), squareWeightedRandom(VERTICAL_BOUND))
     val velocityMagnitude = PARTICLE_START_VELOCITY_RANGE.next()
     //val velocityMagnitude = 300.0
     val velocityDirection = random.nextDouble(PI * 2.0)
@@ -141,7 +146,8 @@ fun randomParticle(): Particle {
     return Particle(id, radius, color, ttl, position, velocity, particleTree)
 }
 
-fun squareWeightedRandom(max: Int) = random.nextDouble().pow(2) * max
+fun squareWeightedRandom(max: Int) = random.nextDouble().pow(3) * max
+fun squareWeightedRandomReverse(max: Int) = (1 - random.nextDouble().pow(3)) * max
 
 fun randomColor(): Color {
     val rgb = Color.HSBtoRGB(PARTICLE_HUE_RANGE.next(), 1f, 1f)

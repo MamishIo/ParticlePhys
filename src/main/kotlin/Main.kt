@@ -39,7 +39,7 @@ fun main() {
                     Thread.sleep(1)
                 }
             }
-            finishTickAndUpdatePerformanceStats()
+            UPDATE_CYCLE_COUNTER.addTimeTick()
         }
     }.start()
     createWindow()
@@ -57,9 +57,9 @@ fun createWindow() {
 }
 
 fun render(timeDelta: Double) {
-    debugReportTimeTaken("drawParticles", { drawParticles(timeDelta) })
-    debugReportTimeTaken("drawHud", { drawHud() })
-    debugReportTimeTaken("canvasRepaint", { canvasComponent.repaint() })
+    DRAW_PARTICLES_COUNTER.time { drawParticles(timeDelta) }
+    DRAW_HUD_COUNTER.time { drawHud() }
+    CANVAS_REPAINT_COUNTER.time { canvasComponent.repaint() }
 }
 
 fun drawParticles(timeDelta: Double) {
@@ -83,10 +83,14 @@ fun drawParticles(timeDelta: Double) {
     }
 }
 
+val countersToDraw = listOf(
+    UPDATE_CYCLE_COUNTER,
+    SIMULATE_PARTICLES_COUNTER,
+    FIND_COLLISIONS_COUNTER,
+    DRAW_PARTICLES_COUNTER,
+    DRAW_HUD_COUNTER
+)
 fun drawHud() {
-    val averageFpsClamped = getAverageFps().coerceAtMost(999.0)
-    val fpsPlusMinusClamped = getFpsRangePlusMinus().coerceAtMost(99.0)
-    val fpsString = "${String.format("%3.1f", averageFpsClamped)} +- ${String.format("%2.1f", fpsPlusMinusClamped)}"
     with(hudImage.createGraphics()) {
         color = Color(0, 0, 0, 0)
         composite = AlphaComposite.Clear
@@ -95,9 +99,15 @@ fun drawHud() {
     }
     hudImage.createGraphics().let { g ->
         particleTree.debugDraw(g)
+
         drawCollisionLines(g)
+
+        g.color = Color.BLACK
+        g.fillRect(0, 0, 240, (1 + countersToDraw.size) * 16)
+
         g.color = Color.WHITE
-        g.drawString(fpsString, 16, 16)
+        countersToDraw.forEachIndexed { i, counter -> g.drawString( counter.getMetricString(), 16, (i+1) * 16) }
+
         g.dispose()
     }
 }
