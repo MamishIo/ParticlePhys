@@ -1,4 +1,6 @@
+import java.awt.BasicStroke
 import java.awt.Color
+import java.awt.Graphics2D
 import java.awt.image.ColorModel
 import kotlin.math.*
 import kotlin.random.Random.Default as random
@@ -8,11 +10,15 @@ val particleList = ArrayList<Particle>()
 var particleTree: ParticleQuadtree = ParticleQuadtree.Leaf(null, Vector2D(0.0, 0.0), Vector2D(HORIZONTAL_BOUND.toDouble(), VERTICAL_BOUND.toDouble()), 0)
 var particlesToSpawnAccumulator = 0.0
 
+data class ParticlePair(val p0: Particle, val p1: Particle)
+val collisionsMap = mutableMapOf<ParticlePair,Boolean>()
+
 // TODO Just clean up Performance.kt and this timing code all over
 
 fun simulationTick(timeDelta: Double) {
     debugReportTimeTaken("simulate") { simulateAllParticles(timeDelta) }
     debugReportTimeTaken("spawn") { spawnNewParticles(timeDelta) }
+    debugReportTimeTaken("findAllCollisions") { findAllCollisions() }
 }
 
 fun simulateAllParticles(timeDelta: Double) {
@@ -26,6 +32,50 @@ fun simulateAllParticles(timeDelta: Double) {
         } else {
             simulateParticle(p, timeDelta)
         }
+    }
+}
+
+fun findAllCollisions() {
+    collisionsMap.clear()
+    // Sort by radius first (collision check maths requires (small,large) order), then ID just for consistency (likely unnecessary)
+    val compareByParticleId = compareBy<Particle> { it.id }
+
+    particleTree.getLeafIterator().forEach { leaf ->
+        val plist = leaf.particles.toList()
+        if (plist.size >= 2) { // Skip if only 1 particle (causes indexing errors)
+            plist.subList(0, plist.size - 1).forEachIndexed { i, pi ->
+                plist.subList(i, plist.size).forEach { pj ->
+                    val pLowerId = minOf(pi, pj, compareByParticleId)
+                    val pHigherId = maxOf(pi, pj, compareByParticleId)
+                    collisionsMap.computeIfAbsent(ParticlePair(pLowerId, pHigherId)) { particlesAreColliding(it.p0, it.p1) }
+                }
+            }
+        }
+    }
+}
+
+fun particlesAreColliding(p0: Particle, p1: Particle): Boolean {
+    val x0 = p0.position.x
+    val y0 = p0.position.y
+    val x1 = p1.position.x
+    val y1 = p1.position.y
+    val r01 = p0.radius + p1.radius
+
+    return x0 in (x1 - r01)..(x1 + r01)
+            && y0 in (y1 - r01)..(y1 + r01)
+            && sqrt((x1 - x0).pow(2) + (y1 - y0).pow(2)) < r01
+}
+
+fun drawCollisionLines(graphics: Graphics2D) {
+    val defaultStroke = BasicStroke(1.0f)
+    val bigStroke = BasicStroke(2.5f)
+    collisionsMap.forEach { (pair, colliding) ->
+        graphics.color = if (colliding) Color.RED else Color.BLUE
+        graphics.stroke = if (colliding) bigStroke else defaultStroke
+        graphics.drawLine(
+            pair.p0.position.x.roundToInt(), pair.p0.position.y.roundToInt(),
+            pair.p1.position.x.roundToInt(), pair.p1.position.y.roundToInt()
+        )
     }
 }
 

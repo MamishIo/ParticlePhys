@@ -1,7 +1,8 @@
 import java.lang.System.nanoTime
+import kotlin.system.measureNanoTime
 
 const val FPS_AVERAGE_NUM_SAMPLES = 40
-const val DEBUG_TIME_PRINT_ENABLED = false
+const val DEBUG_TIME_PRINT_ENABLED = true
 
 var fpsSampleList: MutableList<Double> = MutableList(FPS_AVERAGE_NUM_SAMPLES) { 0.0 }
 var lastTickNanos = nanoTime()
@@ -18,9 +19,7 @@ fun finishTickAndUpdatePerformanceStats() {
 
 fun debugReportTimeTaken(alias: String, timedAction: () -> Unit) {
     if (DEBUG_TIME_PRINT_ENABLED) {
-        val t0 = nanoTime()
-        timedAction.invoke()
-        val dtMillis = (nanoTime() - t0) / 1e6
+        val dtMillis = measureNanoTime { timedAction.invoke() } / 1e6
         println("Time to $alias = ${String.format("%3.3f", dtMillis)}")
     } else {
         timedAction.invoke()

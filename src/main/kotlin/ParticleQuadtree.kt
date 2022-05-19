@@ -1,3 +1,4 @@
+import java.awt.Color
 import java.awt.Graphics2D
 import kotlin.math.roundToInt
 
@@ -30,35 +31,32 @@ sealed class ParticleQuadtree(val parent: ParticleQuadtree?, val position: Vecto
         val particles = mutableSetOf<Particle>()
     }
 
-//    fun getParticleIterator(): MutableIterator<Particle> {
-//        return when(this) {
-//            is Leaf -> particles.iterator()
-//            is Branch -> object: MutableIterator<Particle> {
-//                var quadrantsDone = 0
-//                var quadrantIterator = quadrants[0].getParticleIterator()
-//
-//                override fun hasNext(): Boolean {
-//                    advanceQuadrantIfNeeded()
-//                    return quadrantIterator.hasNext()
-//                }
-//
-//                override fun next(): Particle {
-//                    advanceQuadrantIfNeeded()
-//                    return quadrantIterator.next()
-//                }
-//
-//                override fun remove() = quadrantIterator.remove()
-//
-//                private fun advanceQuadrantIfNeeded() {
-//                    while (!quadrantIterator.hasNext() and (quadrantsDone < 4)) {
-//                        quadrantIterator = quadrants[quadrantsDone++].getParticleIterator()
-//                    }
-//                }
-//            }
-//        }
-//    }
+    fun getLeafIterator(): Iterator<Leaf> {
+        return when (this) {
+            is Leaf -> object : Iterator<Leaf> {
+                var leaf: Leaf? = this@ParticleQuadtree
+                override fun hasNext() = leaf != null
+                override fun next() = leaf!!.also { leaf = null }
+            }
+            is Branch -> object: Iterator<Leaf> {
+                var quadrantsDone = 0
+                var quadrantIterator = quadrants[0].getLeafIterator()
+
+                override fun hasNext() = nextQuadrantIterator().hasNext()
+                override fun next() = nextQuadrantIterator().next()
+
+                private fun nextQuadrantIterator(): Iterator<Leaf> {
+                    while (!quadrantIterator.hasNext() and (quadrantsDone < 3)) {
+                        quadrantIterator = quadrants[++quadrantsDone].getLeafIterator()
+                    }
+                    return quadrantIterator
+                }
+            }
+        }
+    }
 
     fun debugDraw(graphics: Graphics2D) {
+        graphics.color = Color.GRAY
         val midX = position.x + (size.x / 2)
         val midY = position.y + (size.y / 2)
         when (this) {
@@ -126,11 +124,15 @@ sealed class ParticleQuadtree(val parent: ParticleQuadtree?, val position: Vecto
         return surroundsX and surroundsY
     }
 
-    fun touchesParticle(particle: Particle): Boolean {
+    private fun touchesParticle(particle: Particle): Boolean {
         val touchesX = (particle.position.x >= position.x - particle.radius) and (particle.position.x <= position.x + size.x + particle.radius)
         val touchesY = (particle.position.y >= position.y - particle.radius) and (particle.position.y <= position.y + size.y + particle.radius)
         return touchesX and touchesY
     }
 
     private fun Double.rnd() = roundToInt()
+
+    override fun toString(): String {
+        return "ParticleQuadtree(parent=$parent, position=$position, size=$size, depth=$depth)"
+    }
 }

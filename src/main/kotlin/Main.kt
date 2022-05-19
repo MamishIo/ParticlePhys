@@ -6,7 +6,6 @@ import javax.swing.JPanel
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
-const val PRETTY_DRAWING_MODE = true
 val mainImage = BufferedImage(HORIZONTAL_BOUND, VERTICAL_BOUND, BufferedImage.TYPE_INT_ARGB)
 val hudImage = BufferedImage(HORIZONTAL_BOUND, VERTICAL_BOUND, BufferedImage.TYPE_INT_ARGB)
 var canvasComponent = object : JPanel() {
@@ -28,9 +27,7 @@ fun main() {
 
             val timeDelta = 1.0 / TICK_RATE // Uses a fixed time delta for now
             simulationTick(timeDelta)
-            drawParticles(timeDelta)
-            drawHud()
-            canvasComponent.repaint()
+            render(timeDelta)
 
             val tickFinishedNanos = System.nanoTime()
             // If we're late for the next tick, bump the deadline forward to keep timing consistent for the next tick
@@ -57,6 +54,12 @@ fun createWindow() {
     window.add(canvasComponent, BorderLayout.CENTER)
     window.pack()
     window.isVisible = true
+}
+
+fun render(timeDelta: Double) {
+    debugReportTimeTaken("drawParticles", { drawParticles(timeDelta) })
+    debugReportTimeTaken("drawHud", { drawHud() })
+    debugReportTimeTaken("canvasRepaint", { canvasComponent.repaint() })
 }
 
 fun drawParticles(timeDelta: Double) {
@@ -91,9 +94,10 @@ fun drawHud() {
         dispose()
     }
     hudImage.createGraphics().let { g ->
-        g.color = Color.GREEN
-        g.drawString(fpsString, 16, 16)
         particleTree.debugDraw(g)
+        drawCollisionLines(g)
+        g.color = Color.WHITE
+        g.drawString(fpsString, 16, 16)
         g.dispose()
     }
 }
