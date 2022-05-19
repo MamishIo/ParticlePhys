@@ -8,7 +8,7 @@ val PARTICLE_HUE_RANGE = FloatRange(0f, 1f)
 val PARTICLE_START_VELOCITY_RANGE = DoubleRange(25.0, 600.0)
 val PARTICLE_LIFETIME_RANGE = DoubleRange(3.5, 4.5)
 
-const val GLOBAL_GRAVITY = 280.0
+val GLOBAL_GRAVITY = Vector2D(0.0, 280.0)
 
 val PARTICLE_SPAWN_RATE = DoubleRange(1.0, 1.1) //DoubleRange(25.0, 40.0)
 
