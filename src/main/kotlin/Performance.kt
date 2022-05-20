@@ -1,3 +1,5 @@
+import MetricType.RATE
+import MetricType.TIME
 import java.lang.System.nanoTime
 import kotlin.system.measureNanoTime
 
@@ -7,18 +9,28 @@ enum class MetricType {
     TIME, RATE
 }
 
-val UPDATE_CYCLE_COUNTER = PerformanceCounter("UpdateCycle", MetricType.RATE)
-val SIMULATE_PARTICLES_COUNTER = PerformanceCounter("SimulateParticles", MetricType.TIME)
-val SIMULATE_PARTICLES_MOVE_COUNTER = PerformanceCounter("SimulateParticles.Move", MetricType.TIME)
-val SIMULATE_PARTICLES_RELOCATE_COUNTER = PerformanceCounter("SimulateParticles.Relocate", MetricType.TIME)
-val SIMULATE_PARTICLES_RESIZE_COUNTER = PerformanceCounter("SimulateParticles.Resize", MetricType.TIME)
-val SPAWN_PARTICLES_COUNTER = PerformanceCounter("SpawnParticles", MetricType.TIME)
-val FIND_COLLISIONS_COUNTER = PerformanceCounter("FindCollisions", MetricType.TIME)
-val DRAW_PARTICLES_COUNTER = PerformanceCounter("DrawParticles", MetricType.TIME)
-val DRAW_HUD_COUNTER = PerformanceCounter("DrawHud", MetricType.TIME)
-val CANVAS_REPAINT_COUNTER = PerformanceCounter("CanvasRepaint", MetricType.TIME)
+val countersToDraw = mutableListOf<PerformanceCounter>()
+private fun makeCounter(name: String, preferredMetric: MetricType, drawOnHud: Boolean, numSamples: Int = 60): PerformanceCounter {
+    return PerformanceCounter(name, preferredMetric, numSamples).also { if (drawOnHud) countersToDraw.add(it) }
+}
 
-class PerformanceCounter(private val name: String, private val preferredMetric: MetricType, numSamples: Int = 60) {
+val UPDATE_CYCLE_COUNTER = makeCounter("UpdateCycle", RATE, true)
+val UPDATE_CYCLE_INNER_COUNTER = makeCounter("UpdateCycle.Inner", TIME, true)
+
+val SIMULATE_PHYSICS_COUNTER = makeCounter("SimulatePhysics", TIME, true)
+val SIMULATE_PHYSICS_MOVE_COUNTER = makeCounter("SimulatePhysics.Move", TIME, true)
+val SIMULATE_PHYSICS_LEAF_PRUNE_COUNTER = makeCounter("SimulatePhysics.LeafPrune", TIME, true)
+val SIMULATE_PHYSICS_RE_ADD_COUNTER = makeCounter("SimulatePhysics.ReAdd", TIME, true)
+val SIMULATE_PHYSICS_RESIZE_COUNTER = makeCounter("SimulatePhysics.Resize", TIME, true)
+val SIMULATE_PHYSICS_SPAWN_PARTICLES_COUNTER = makeCounter("SimulatePhysics.Spawn", TIME, false)
+val SIMULATE_PHYSICS_DETECT_COLLIDE_COUNTER = makeCounter("SimulatePhysics.DetectCollide", TIME, true)
+
+val DRAW_PARTICLES_COUNTER = makeCounter("DrawParticles", TIME, true)
+val DRAW_HUD_COUNTER = makeCounter("DrawHud", TIME, true)
+
+val CANVAS_REPAINT_COUNTER = makeCounter("CanvasRepaint", TIME, false)
+
+class PerformanceCounter(private val name: String, private val preferredMetric: MetricType, numSamples: Int) {
     private val timeList = MutableList(numSamples) { 0.0 }
     private val rateList = MutableList(numSamples) { 0.0 }
     private var lastTick = nanoTime()
@@ -38,7 +50,7 @@ class PerformanceCounter(private val name: String, private val preferredMetric: 
         timeList.removeAt(0)
         timeList.add(millis)
         rateList.removeAt(0)
-        rateList.add(if (millis != 0.0) 1000.0/millis else 1.0) // Not the best way to handle div-by-zero, but it will do
+        rateList.add(if (millis != 0.0) 1000.0 / millis else 1.0) // Not the best way to handle div-by-zero, but it will do
     }
 
     fun getAverageTime() = timeList.average()
@@ -47,9 +59,10 @@ class PerformanceCounter(private val name: String, private val preferredMetric: 
     fun getRateRangePlusMinus() = (rateList.maxOrNull()!! - rateList.minOrNull()!!) / 2.0
 
     fun getMetricString() = when (preferredMetric) {
-        MetricType.TIME -> getTimeString()
-        MetricType.RATE -> getRateString()
+        TIME -> getTimeString()
+        RATE -> getRateString()
     }
+
     fun getTimeString() = formatPlusMinusString(getAverageTime(), getTimeRangePlusMinus())
     fun getRateString() = formatPlusMinusString(getAverageRate(), getRateRangePlusMinus())
 

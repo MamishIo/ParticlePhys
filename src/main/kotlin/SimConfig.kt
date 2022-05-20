@@ -3,6 +3,7 @@ import kotlin.math.floor
 const val HORIZONTAL_BOUND = 1920
 const val VERTICAL_BOUND = 1080
 
+const val MAX_DEBUG_DRAW_COLLISION_LINES = 0 // Set 0 to disable
 const val PRETTY_DRAWING_MODE = false
 val PARTICLE_HUE_RANGE = FloatRange(0f, 1f)
 
@@ -10,7 +11,7 @@ val PARTICLE_RADIUS_RANGE = DoubleRange(9.0, 16.0)
 val PARTICLE_START_VELOCITY_RANGE = DoubleRange(120.0, 160.0)
 val PARTICLE_LIFETIME_RANGE = DoubleRange(3.5, 4.5)
 
-val PARTICLE_SPAWN_RATE = DoubleRange(320.0, 330.0) //DoubleRange(25.0, 40.0)
+val PARTICLE_SPAWN_RATE = DoubleRange(500.0, 510.0) //DoubleRange(25.0, 40.0)
 
 val GLOBAL_GRAVITY = Vector2D(0.0, 20.0)
 
@@ -23,4 +24,4 @@ const val TRAIL_TARGET_ALPHA_1_SECOND = 0.03
 const val PARTICLE_ALPHA = 0.3
 
 const val QUADTREE_MAX_HEIGHT = 5
-const val QUADTREE_MAX_PARTICLES_PER_LEAF = 20
+const val QUADTREE_MAX_PARTICLES_PER_LEAF = 12

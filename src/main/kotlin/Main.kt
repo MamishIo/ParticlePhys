@@ -25,9 +25,11 @@ fun main() {
         while (true) {
             nextFrameStartDeadlineNanos += TICK_INTERVAL_NS
 
-            val timeDelta = 1.0 / TICK_RATE // Uses a fixed time delta for now
-            simulationTick(timeDelta)
-            render(timeDelta)
+            UPDATE_CYCLE_INNER_COUNTER.time {
+                val timeDelta = 1.0 / TICK_RATE // Uses a fixed time delta for now
+                simulateParticles(timeDelta)
+                render(timeDelta)
+            }
 
             val tickFinishedNanos = System.nanoTime()
             // If we're late for the next tick, bump the deadline forward to keep timing consistent for the next tick
@@ -83,16 +85,6 @@ fun drawParticles(timeDelta: Double) {
     }
 }
 
-val countersToDraw = listOf(
-    UPDATE_CYCLE_COUNTER,
-    SIMULATE_PARTICLES_COUNTER,
-    SIMULATE_PARTICLES_MOVE_COUNTER,
-    SIMULATE_PARTICLES_RELOCATE_COUNTER,
-    SIMULATE_PARTICLES_RESIZE_COUNTER,
-    FIND_COLLISIONS_COUNTER,
-    DRAW_PARTICLES_COUNTER,
-    DRAW_HUD_COUNTER
-)
 fun drawHud() {
     with(hudImage.createGraphics()) {
         color = Color(0, 0, 0, 0)
@@ -103,13 +95,13 @@ fun drawHud() {
     hudImage.createGraphics().let { g ->
         particleTree.debugDraw(g)
 
-        //drawCollisionLines(g)
+        drawCollisionLines(g)
 
         g.color = Color.BLACK
         g.fillRect(0, 0, 300, (1 + countersToDraw.size) * 16)
 
         g.color = Color.WHITE
-        countersToDraw.forEachIndexed { i, counter -> g.drawString( counter.getMetricString(), 16, (i+1) * 16) }
+        countersToDraw.forEachIndexed { i, counter -> g.drawString(counter.getMetricString(), 16, (i + 1) * 16) }
 
         g.dispose()
     }

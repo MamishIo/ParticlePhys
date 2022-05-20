@@ -5,9 +5,6 @@ import java.awt.image.ColorModel
 import kotlin.math.*
 import kotlin.random.Random.Default as random
 
-// Protects against HUD draw blowing out the render time if there are a LOT of collision pairs to check
-const val MAX_DEBUG_COLLISION_LINES = 20000
-
 // Different data structures for different traversals: list for fast exactly-once iteration, and tree for at-least-once spatial traversal
 val particleList = ArrayList<Particle>()
 var particleTree: ParticleQuadtree = ParticleQuadtree.Leaf(null, Vector2D(0.0, 0.0), Vector2D(HORIZONTAL_BOUND.toDouble(), VERTICAL_BOUND.toDouble()), 0)
@@ -16,17 +13,16 @@ var particlesToSpawnAccumulator = 0.0
 data class ParticlePair(val p0: Particle, val p1: Particle)
 val collisionsMap = mutableMapOf<ParticlePair,Boolean>()
 
-fun simulationTick(timeDelta: Double) {
-    SIMULATE_PARTICLES_COUNTER.time { simulateAllParticles(timeDelta) }
-    SPAWN_PARTICLES_COUNTER.time { spawnNewParticles(timeDelta) }
-    FIND_COLLISIONS_COUNTER.time { findAllCollisions() }
-}
-
-fun simulateAllParticles(timeDelta: Double) {
-    removeExpiredParticles(timeDelta)
-    SIMULATE_PARTICLES_MOVE_COUNTER.time { particleList.forEach { simulateParticleMotion(it, timeDelta) } }
-    SIMULATE_PARTICLES_RELOCATE_COUNTER.time { particleList.forEach { relocateParticleInTree(it) } }
-    SIMULATE_PARTICLES_RESIZE_COUNTER.time { particleTree = particleTree.resizeTree() }
+fun simulateParticles(timeDelta: Double) {
+    SIMULATE_PHYSICS_COUNTER.time {
+        removeExpiredParticles(timeDelta)
+        SIMULATE_PHYSICS_MOVE_COUNTER.time { particleList.forEach { simulateParticleMotion(it, timeDelta) } }
+        SIMULATE_PHYSICS_LEAF_PRUNE_COUNTER.time { removeNonResidentParticlesFromLeafNodes() }
+        SIMULATE_PHYSICS_RE_ADD_COUNTER.time { particleList.forEach { relocateParticleInTree(it) } }
+        SIMULATE_PHYSICS_RESIZE_COUNTER.time { particleTree = particleTree.resizeTree() }
+        SIMULATE_PHYSICS_SPAWN_PARTICLES_COUNTER.time { spawnNewParticles(timeDelta) }
+        SIMULATE_PHYSICS_DETECT_COLLIDE_COUNTER.time { findAllCollisions() }
+    }
 }
 
 fun removeExpiredParticles(timeDelta: Double) {
@@ -61,17 +57,28 @@ fun simulateParticleMotion(particle: Particle, timeDelta: Double) {
     }
 }
 
-fun relocateParticleInTree(p: Particle) {
-        // If enclosing node is no longer completely enclosing, move up the tree to find a bigger node that does enclose this
-        while (!p.enclosingTreeNode.enclosesParticle(p) && p.enclosingTreeNode.parent != null) {
-            p.enclosingTreeNode = p.enclosingTreeNode.parent!!
+fun removeNonResidentParticlesFromLeafNodes() {
+    particleTree.getLeafIterator().forEach { leaf ->
+        val piter = leaf.particles.iterator()
+        while (piter.hasNext()) {
+            val p = piter.next()
+            if (!leaf.touchesParticle(p)) {
+                piter.remove()
+            }
         }
-        // Recursively remove the particle from the enclosing node and all sub-trees and re-add it to refresh its position
-        // Because this is scoped to the enclosing node, it usually will only need to traverse a fraction of the tree
-        p.enclosingTreeNode.removeParticle(p)
-        p.enclosingTreeNode.addParticleIfTouching(p)
-        //particleTree.removeParticle(p)
-        //particleTree.addParticleIfTouching(p)
+    }
+}
+
+fun relocateParticleInTree(p: Particle) {
+    // If enclosing node is no longer completely enclosing, move up the tree to find a bigger node that does enclose this
+    while (!p.enclosingTreeNode.enclosesParticle(p) && p.enclosingTreeNode.parent != null) {
+        p.enclosingTreeNode = p.enclosingTreeNode.parent!!
+    }
+
+    // Originally this method did remove-then-add, but the remove was unexpectedly expensive and caused excessive tree rebuild times.
+    // Removal is now done from the leaf nodes directly since they can evaluate whether a particle should be resident.
+    // We still have to call add here to make sure the particle is in any new leaves it might be touching after move.
+    p.enclosingTreeNode.addParticleIfTouching(p)
 }
 
 fun findAllCollisions() {
@@ -110,15 +117,15 @@ fun drawCollisionLines(graphics: Graphics2D) {
     val bigStroke = BasicStroke(2.5f)
     var numberDrawn = 0
     collisionsMap.forEach { (pair, colliding) ->
+        if (numberDrawn++ > MAX_DEBUG_DRAW_COLLISION_LINES) {
+            return
+        }
         graphics.color = if (colliding) Color.RED else Color.BLUE
         graphics.stroke = if (colliding) bigStroke else defaultStroke
         graphics.drawLine(
             pair.p0.position.x.roundToInt(), pair.p0.position.y.roundToInt(),
             pair.p1.position.x.roundToInt(), pair.p1.position.y.roundToInt()
         )
-        if (++numberDrawn > MAX_DEBUG_COLLISION_LINES) {
-            return
-        }
     }
 }
 

@@ -10,4 +10,9 @@ class Particle(
     val position: Vector2D,
     val velocity: Vector2D,
     var enclosingTreeNode: ParticleQuadtree
-)
+) {
+
+    override fun toString(): String {
+        return "Particle(id=$id, radius=$radius, color=$color, ttl=$ttl, position=$position, velocity=$velocity)"
+    }
+}

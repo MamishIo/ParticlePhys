@@ -4,7 +4,7 @@ import kotlin.math.roundToInt
 
 sealed class ParticleQuadtree(val parent: ParticleQuadtree?, val position: Vector2D, val size: Vector2D, val depth: Int) {
 
-    class Branch(parent: ParticleQuadtree?, position: Vector2D, size: Vector2D, depth: Int): ParticleQuadtree(parent, position, size, depth) {
+    class Branch(parent: ParticleQuadtree?, position: Vector2D, size: Vector2D, depth: Int) : ParticleQuadtree(parent, position, size, depth) {
         // Order: NE, NW, SW, SE (if this ever becomes semantically important, should denote it in the type somehow
         var quadrants: Array<ParticleQuadtree> = arrayOf(
             makeQuadrant(true, false),
@@ -27,7 +27,7 @@ sealed class ParticleQuadtree(val parent: ParticleQuadtree?, val position: Vecto
         }
     }
 
-    class Leaf(parent: ParticleQuadtree?, position: Vector2D, size: Vector2D, depth: Int): ParticleQuadtree(parent, position, size, depth) {
+    class Leaf(parent: ParticleQuadtree?, position: Vector2D, size: Vector2D, depth: Int) : ParticleQuadtree(parent, position, size, depth) {
         val particles = HashSet<Particle>(64)
     }
 
@@ -38,7 +38,7 @@ sealed class ParticleQuadtree(val parent: ParticleQuadtree?, val position: Vecto
                 override fun hasNext() = leaf != null
                 override fun next() = leaf!!.also { leaf = null }
             }
-            is Branch -> object: Iterator<Leaf> {
+            is Branch -> object : Iterator<Leaf> {
                 var quadrantsDone = 0
                 var quadrantIterator = quadrants[0].getLeafIterator()
 
@@ -90,15 +90,14 @@ sealed class ParticleQuadtree(val parent: ParticleQuadtree?, val position: Vecto
         }
     }
 
-    // TODO: Investigate slow performance on tree relocate due to unnecessary HashSet remove calls
-    // TODO: Should change particle to track all leaf nodes it is part of, in addition to exiting enclosing node ref
     fun removeParticle(particle: Particle) {
         when (this) {
-            is Leaf -> particles.remove(particle) // This particular call is a big contributor on profiler
+            is Leaf -> particles.remove(particle)
             is Branch -> quadrants.forEach { it.removeParticle(particle) }
         }
     }
 
+    // TODO: Maybe this should merge leaves at a low size threshold rather than zero?
     fun resizeTree(): ParticleQuadtree {
         // If this is a leaf that has gained too many particles, subdivide it (up to a depth limit)
         if (this is Leaf && (particles.size > QUADTREE_MAX_PARTICLES_PER_LEAF && depth < QUADTREE_MAX_HEIGHT)) {
@@ -124,7 +123,7 @@ sealed class ParticleQuadtree(val parent: ParticleQuadtree?, val position: Vecto
         return surroundsX and surroundsY
     }
 
-    private fun touchesParticle(particle: Particle): Boolean {
+    fun touchesParticle(particle: Particle): Boolean {
         val touchesX = (particle.position.x >= position.x - particle.radius) and (particle.position.x <= position.x + size.x + particle.radius)
         val touchesY = (particle.position.y >= position.y - particle.radius) and (particle.position.y <= position.y + size.y + particle.radius)
         return touchesX and touchesY
