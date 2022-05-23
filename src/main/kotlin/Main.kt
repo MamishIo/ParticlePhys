@@ -93,7 +93,7 @@ fun drawHud() {
         dispose()
     }
     hudImage.createGraphics().let { g ->
-        particleTree.debugDraw(g)
+        if (DRAW_HUD_QUADTREE_NODES) { particleTree.debugDraw(g) }
 
         drawCollisionLines(g)
 

@@ -22,6 +22,7 @@ fun simulateParticles(timeDelta: Double) {
         SIMULATE_PHYSICS_RESIZE_COUNTER.time { particleTree = particleTree.resizeTree() }
         SIMULATE_PHYSICS_SPAWN_PARTICLES_COUNTER.time { spawnNewParticles(timeDelta) }
         SIMULATE_PHYSICS_DETECT_COLLIDE_COUNTER.time { findAllCollisions() }
+        SIMULATE_PHYSICS_RESOLVE_COLLISIONS_COUNTER.time { resolveCollisions() }
     }
 }
 
@@ -112,6 +113,30 @@ fun particlesAreColliding(p0: Particle, p1: Particle): Boolean {
             && sqrt((x1 - x0).pow(2) + (y1 - y0).pow(2)) < r01
 }
 
+fun resolveCollisions() {
+    collisionsMap.filter { it.value }.map { it.key }.forEach {
+        val vx1 = it.p0.velocity.x
+        val vy1 = it.p0.velocity.y
+        val m1 = it.p0.mass
+
+        val vx2 = it.p1.velocity.x
+        val vy2 = it.p1.velocity.y
+        val m2 = it.p1.mass
+
+        val massDiff1 = m1 - m2
+        val massDiff2 = m2 - m1
+
+        val doubleMass1 = 2.0 * m1
+        val doubleMass2 = 2.0 * m2
+        val combinedMass = m1 + m2
+
+        it.p0.velocity.x = (vx1 * massDiff1 + (doubleMass2 * vx2)) / combinedMass
+        it.p0.velocity.y = (vy1 * massDiff1 + (doubleMass2 * vy2)) / combinedMass
+        it.p1.velocity.x = (vx2 * massDiff2 + (doubleMass1 * vx1)) / combinedMass
+        it.p1.velocity.y = (vy2 * massDiff2 + (doubleMass1 * vy1)) / combinedMass
+    }
+}
+
 fun drawCollisionLines(graphics: Graphics2D) {
     val defaultStroke = BasicStroke(1.0f)
     val bigStroke = BasicStroke(2.5f)
@@ -145,7 +170,7 @@ fun randomParticle(): Particle {
     val color = randomColor()
     val ttl = PARTICLE_LIFETIME_RANGE.next()
     //val position = listOf(Vector2D(960.0, 540.0), Vector2D(480.0, 270.0), Vector2D(480.0, 540.0)).random()
-    val position = Vector2D(squareWeightedRandomReverse(HORIZONTAL_BOUND), squareWeightedRandom(VERTICAL_BOUND))
+    val position = Vector2D(weightedRandomReverseFunction(HORIZONTAL_BOUND), weightedRandomFunction(VERTICAL_BOUND))
     val velocityMagnitude = PARTICLE_START_VELOCITY_RANGE.next()
     //val velocityMagnitude = 300.0
     val velocityDirection = random.nextDouble(PI * 2.0)
@@ -154,8 +179,8 @@ fun randomParticle(): Particle {
     return Particle(id, radius, color, ttl, position, velocity, particleTree)
 }
 
-fun squareWeightedRandom(max: Int) = random.nextDouble().pow(3) * max
-fun squareWeightedRandomReverse(max: Int) = (1 - random.nextDouble().pow(3)) * max
+fun weightedRandomFunction(max: Int) = random.nextDouble().pow(1) * max
+fun weightedRandomReverseFunction(max: Int) = (1 - random.nextDouble().pow(1)) * max
 
 fun randomColor(): Color {
     val rgb = Color.HSBtoRGB(PARTICLE_HUE_RANGE.next(), 1f, 1f)
