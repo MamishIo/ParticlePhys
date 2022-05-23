@@ -10,6 +10,10 @@ val particleList = ArrayList<Particle>()
 var particleTree: ParticleQuadtree = ParticleQuadtree.Leaf(null, Vector2D(0.0, 0.0), Vector2D(HORIZONTAL_BOUND.toDouble(), VERTICAL_BOUND.toDouble()), 0)
 var particlesToSpawnAccumulator = 0.0
 
+var gravityWellPosition = Vector2D(0.0, 0.0)
+var gravityWellActive = false
+var gravityWellReverseActive = false
+
 data class ParticlePair(val p0: Particle, val p1: Particle)
 val collisionsMap = mutableMapOf<ParticlePair,Boolean>()
 
@@ -22,7 +26,7 @@ fun simulateParticles(timeDelta: Double) {
         SIMULATE_PHYSICS_RESIZE_COUNTER.time { particleTree = particleTree.resizeTree() }
         SIMULATE_PHYSICS_SPAWN_PARTICLES_COUNTER.time { spawnNewParticles(timeDelta) }
         SIMULATE_PHYSICS_DETECT_COLLIDE_COUNTER.time { findAllCollisions() }
-        SIMULATE_PHYSICS_RESOLVE_COLLISIONS_COUNTER.time { resolveCollisions() }
+        SIMULATE_PHYSICS_RESOLVE_COLLIDE_COUNTER.time { resolveCollisions() }
     }
 }
 
@@ -41,7 +45,16 @@ fun removeExpiredParticles(timeDelta: Double) {
 fun simulateParticleMotion(particle: Particle, timeDelta: Double) {
     particle.run {
         velocity.addMult(GLOBAL_GRAVITY, timeDelta)
+
+        if (gravityWellActive or gravityWellReverseActive) {
+            val gravVector = Vector2D(gravityWellPosition.x - position.x, gravityWellPosition.y - position.y)
+            val gravConstant = GRAVITATIONAL_CONSTANT * if (gravityWellReverseActive) -1.0 else 1.0
+            // The "1 + ..." in the pow is to normalise the gravity well difference vector
+            velocity.addMult(gravVector, gravConstant / gravVector.magnitude().pow(1 + GRAVITATIONAL_DISTANCE_EXPONENT) * timeDelta)
+        }
+
         position.addMult(velocity, timeDelta)
+
         // This repetition sucks, figure out how to make it better
         if (position.x < radius) {
             velocity.x = abs(velocity.x)
@@ -91,7 +104,7 @@ fun findAllCollisions() {
         val plist = leaf.particles.toList()
         if (plist.size >= 2) { // Skip if only 1 particle (causes indexing errors)
             plist.subList(0, plist.size - 1).forEachIndexed { i, pi ->
-                plist.subList(i, plist.size).forEach { pj ->
+                plist.subList(i + 1, plist.size).forEach { pj ->
                     val pLowerId = minOf(pi, pj, compareByParticleId)
                     val pHigherId = maxOf(pi, pj, compareByParticleId)
                     collisionsMap.computeIfAbsent(ParticlePair(pLowerId, pHigherId)) { particlesAreColliding(it.p0, it.p1) }
@@ -115,26 +128,48 @@ fun particlesAreColliding(p0: Particle, p1: Particle): Boolean {
 
 fun resolveCollisions() {
     collisionsMap.filter { it.value }.map { it.key }.forEach {
-        val vx1 = it.p0.velocity.x
-        val vy1 = it.p0.velocity.y
-        val m1 = it.p0.mass
-
-        val vx2 = it.p1.velocity.x
-        val vy2 = it.p1.velocity.y
-        val m2 = it.p1.mass
-
-        val massDiff1 = m1 - m2
-        val massDiff2 = m2 - m1
-
-        val doubleMass1 = 2.0 * m1
-        val doubleMass2 = 2.0 * m2
-        val combinedMass = m1 + m2
-
-        it.p0.velocity.x = (vx1 * massDiff1 + (doubleMass2 * vx2)) / combinedMass
-        it.p0.velocity.y = (vy1 * massDiff1 + (doubleMass2 * vy2)) / combinedMass
-        it.p1.velocity.x = (vx2 * massDiff2 + (doubleMass1 * vx1)) / combinedMass
-        it.p1.velocity.y = (vy2 * massDiff2 + (doubleMass1 * vy1)) / combinedMass
+        resolveCollidingPairVelocity(it.p0, it.p1)
+        resolveCollidingPairPosition(it.p0, it.p1)
     }
+}
+
+fun resolveCollidingPairVelocity(p1: Particle, p2: Particle) {
+    val vx1 = p1.velocity.x
+    val vy1 = p1.velocity.y
+    val m1 = p1.mass
+
+    val vx2 = p2.velocity.x
+    val vy2 = p2.velocity.y
+    val m2 = p2.mass
+
+    val massDiff1 = m1 - m2
+    val massDiff2 = m2 - m1
+
+    val doubleMass1 = 2.0 * m1
+    val doubleMass2 = 2.0 * m2
+    val combinedMass = m1 + m2
+
+    p1.velocity.x = (vx1 * massDiff1 + (doubleMass2 * vx2)) / combinedMass
+    p1.velocity.y = (vy1 * massDiff1 + (doubleMass2 * vy2)) / combinedMass
+    p2.velocity.x = (vx2 * massDiff2 + (doubleMass1 * vx1)) / combinedMass
+    p2.velocity.y = (vy2 * massDiff2 + (doubleMass1 * vy1)) / combinedMass
+}
+
+fun resolveCollidingPairPosition(p1: Particle, p2: Particle) {
+
+    val dx = p2.position.x - p1.position.x
+    val dy = p2.position.y - p1.position.y
+
+    val rBoth = p1.radius + p2.radius
+    val distance = sqrt(dx.pow(2) + dy.pow(2))
+
+    // Add a fraction extra to the normalize to ensure the particles are not colliding afterwards
+    val normalizeToHalfOverlap = 1.00001 * (rBoth - distance) / (2.0 * distance)
+
+    p1.position.x -= dx * normalizeToHalfOverlap
+    p1.position.y -= dy * normalizeToHalfOverlap
+    p2.position.x += dx * normalizeToHalfOverlap
+    p2.position.y += dy * normalizeToHalfOverlap
 }
 
 fun drawCollisionLines(graphics: Graphics2D) {
@@ -142,7 +177,7 @@ fun drawCollisionLines(graphics: Graphics2D) {
     val bigStroke = BasicStroke(2.5f)
     var numberDrawn = 0
     collisionsMap.forEach { (pair, colliding) ->
-        if (numberDrawn++ > MAX_DEBUG_DRAW_COLLISION_LINES) {
+        if (numberDrawn++ >= MAX_DEBUG_DRAW_COLLISION_LINES) {
             return
         }
         graphics.color = if (colliding) Color.RED else Color.BLUE

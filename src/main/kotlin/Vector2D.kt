@@ -1,3 +1,6 @@
+import kotlin.math.pow
+import kotlin.math.sqrt
+
 class Vector2D(var x: Double, var y: Double) {
 
     fun addMult(v2: Vector2D, m: Double): Vector2D {
@@ -10,6 +13,10 @@ class Vector2D(var x: Double, var y: Double) {
         x += v2.x
         y += v2.y
         return this
+    }
+
+    fun magnitude(): Double {
+        return sqrt(x.pow(2) + y.pow(2))
     }
 
     override fun toString(): String {

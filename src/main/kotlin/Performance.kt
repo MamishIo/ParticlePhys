@@ -24,7 +24,7 @@ val SIMULATE_PHYSICS_RE_ADD_COUNTER = makeCounter("SimulatePhysics.ReAdd", TIME,
 val SIMULATE_PHYSICS_RESIZE_COUNTER = makeCounter("SimulatePhysics.Resize", TIME, true)
 val SIMULATE_PHYSICS_SPAWN_PARTICLES_COUNTER = makeCounter("SimulatePhysics.Spawn", TIME, false)
 val SIMULATE_PHYSICS_DETECT_COLLIDE_COUNTER = makeCounter("SimulatePhysics.DetectCollide", TIME, true)
-val SIMULATE_PHYSICS_RESOLVE_COLLISIONS_COUNTER = makeCounter("SimulatePhysics.ResolveCollisions", TIME, true)
+val SIMULATE_PHYSICS_RESOLVE_COLLIDE_COUNTER = makeCounter("SimulatePhysics.ResolveCollide", TIME, true)
 
 val DRAW_PARTICLES_COUNTER = makeCounter("DrawParticles", TIME, true)
 val DRAW_HUD_COUNTER = makeCounter("DrawHud", TIME, true)
